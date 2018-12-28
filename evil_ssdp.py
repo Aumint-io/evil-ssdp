@@ -242,7 +242,6 @@ def build_class(upnp_args):
             Builds the device descriptor XML file.
             """
             file_path = template_dir + '/device.xml'
-            print(file_path)
             if os.path.isfile(file_path):
                 variables = {'local_ip': local_ip,
                              'local_port': local_port,

